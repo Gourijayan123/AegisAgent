@@ -1,68 +1,32 @@
-
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "./App.css";
+import {
+  DEMO_ALERTS,
+  INITIAL_NOTIFICATIONS,
+  generateAnalysis,
+} from "./dummyData.js";
+import { ActionsContext, alertsToCsv, buildReport, downloadFile } from "./shared.js";
+import {
+  AiAssistant,
+  AlertActions,
+  AnalysisRunner,
+  BlocklistPanel,
+  DeviceScan,
+  LiveTrafficPanel,
+  NotificationMenu,
+  ProtocolMix,
+  SeverityBreakdown,
+  SignedOutScreen,
+  TopTalkers,
+  TrafficPanel,
+  UserMenu,
+} from "./features.jsx";
 
 const API_URL = (
   import.meta.env.VITE_API_URL || "http://localhost:8000"
 ).replace(/\/$/, "");
 
-const DEMO_ALERTS = [
-  {
-    id: "AEG-001",
-    attack_type: "Port Scan",
-    source_ip: "192.168.1.10",
-    destination_ip: "192.168.1.20",
-    severity: "High",
-    confidence: 94,
-    timestamp: new Date().toISOString(),
-    status: "Investigating",
-    protocol: "TCP",
-    packet_count: 150,
-    evidence: [
-      "Multiple destination ports contacted",
-      "Repeated connection attempts within a short interval",
-      "Unusual connection pattern detected",
-    ],
-    analysis:
-      "The traffic pattern is consistent with possible reconnaissance activity. Verify the destination ports, timestamps, and source activity before taking action.",
-    recommendation: "Investigate the source and monitor subsequent traffic.",
-  },
-  {
-    id: "AEG-002",
-    attack_type: "Suspicious Traffic",
-    source_ip: "192.168.1.15",
-    destination_ip: "192.168.1.30",
-    severity: "Medium",
-    confidence: 76,
-    timestamp: new Date(Date.now() - 60000).toISOString(),
-    status: "Under review",
-    protocol: "TCP",
-    packet_count: 82,
-    evidence: [
-      "Unusual traffic frequency",
-      "Additional packet inspection required",
-    ],
-    analysis:
-      "The observed traffic differs from the expected pattern. More context is required to determine whether the activity is malicious.",
-    recommendation: "Review the traffic logs and monitor the source.",
-  },
-  {
-    id: "AEG-003",
-    attack_type: "Connection Anomaly",
-    source_ip: "192.168.1.22",
-    destination_ip: "192.168.1.5",
-    severity: "Low",
-    confidence: 61,
-    timestamp: new Date(Date.now() - 180000).toISOString(),
-    status: "Resolved",
-    protocol: "UDP",
-    packet_count: 24,
-    evidence: ["Unusual connection timing"],
-    analysis:
-      "An unusual connection pattern was recorded. The current evidence is insufficient to confirm malicious activity.",
-    recommendation: "Continue routine monitoring.",
-  },
-];
+const OPEN_STATUSES = ["Investigating", "Under review", "Escalated"];
 
 const NAV_ITEMS = [
   "Overview",
@@ -70,6 +34,11 @@ const NAV_ITEMS = [
   "Network",
   "AI Analysis",
 ];
+
+function pageFromHash() {
+  const slug = window.location.hash.replace("#", "").toLowerCase().replace(/-/g, " ");
+  return NAV_ITEMS.find((item) => item.toLowerCase() === slug) || "Overview";
+}
 
 function normalizeAlert(item, index = 0) {
   const rawSeverity = String(
@@ -138,6 +107,87 @@ function Severity({ value }) {
   );
 }
 
+const MOCK_TRAFFIC = [
+  22, 30, 26, 38, 34, 46, 40, 52, 44, 58, 50, 66, 48, 54, 72, 60, 64, 80, 62, 70,
+];
+
+function HeroDashboardMock({ alerts, stats }) {
+  const width = 300;
+  const height = 90;
+  const max = Math.max(...MOCK_TRAFFIC);
+  const points = MOCK_TRAFFIC.map((value, i) => [
+    (i / (MOCK_TRAFFIC.length - 1)) * (width - 8),
+    height - (value / max) * (height - 10) - 4,
+  ]);
+  const line = points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+  const [lastX, lastY] = points[points.length - 1];
+  const recent = alerts.slice(0, 3);
+
+  return (
+    <div className="mock" aria-hidden="true">
+      <div className="mock-window">
+        <div className="mock-chrome">
+          <span /><span /><span />
+          <em>aegis / overview</em>
+          <b className="mock-live"><i /> LIVE</b>
+        </div>
+
+        <div className="mock-kpis">
+          <div>
+            <small>ALERTS</small>
+            <strong>{stats.total}</strong>
+          </div>
+          <div>
+            <small>HIGH RISK</small>
+            <strong className="mock-hot">{stats.high}</strong>
+          </div>
+          <div>
+            <small>IN REVIEW</small>
+            <strong>{stats.investigated}</strong>
+          </div>
+        </div>
+
+        <div className="mock-chart">
+          <div className="mock-chart-title">
+            <span>TRAFFIC / PACKETS PER SEC</span>
+            <span>24H</span>
+          </div>
+          <div className="mock-plot">
+          <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="mockFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#43f58a" stopOpacity="0.55" />
+                <stop offset="100%" stopColor="#43f58a" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {[22, 45, 68].map((y) => (
+              <line key={y} x1="0" x2={width} y1={y} y2={y} className="mock-gridline" />
+            ))}
+            <polygon points={`0,${height} ${line} ${lastX.toFixed(1)},${height}`} fill="url(#mockFill)" />
+            <polyline points={line} className="mock-line" pathLength="1" />
+          </svg>
+            <span
+              className="mock-dot"
+              style={{ left: `${(lastX / width) * 100}%`, top: `${(lastY / height) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="mock-alerts">
+          {recent.map((alert) => (
+            <div className="mock-alert" key={alert.id}>
+              <span className={`mock-sev mock-sev-${String(alert.severity).toLowerCase()}`} />
+              <span className="mock-alert-name">{alert.attack_type}</span>
+              <span className="mock-alert-ip">{alert.source_ip}</span>
+              <span className="mock-alert-conf">{alert.confidence}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SectionHeading({ eyebrow, title, description, children }) {
   return (
     <div className="section-heading">
@@ -151,8 +201,87 @@ function SectionHeading({ eyebrow, title, description, children }) {
   );
 }
 
+const SPLASH_STEPS = [
+  "Initializing sensors",
+  "Loading traffic data",
+  "Analyzing patterns",
+  "Preparing dashboard",
+];
+
+function SplashScreen({ ready, onDone }) {
+  const [minDone, setMinDone] = useState(false);
+  const [maxDone, setMaxDone] = useState(false);
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const minTimer = setTimeout(() => setMinDone(true), 2200);
+    const maxTimer = setTimeout(() => setMaxDone(true), 6000);
+    const stepTimer = setInterval(
+      () => setStep((value) => Math.min(value + 1, SPLASH_STEPS.length - 1)),
+      650
+    );
+
+    return () => {
+      clearTimeout(minTimer);
+      clearTimeout(maxTimer);
+      clearInterval(stepTimer);
+    };
+  }, []);
+
+  const leaving = maxDone || (ready && minDone);
+
+  useEffect(() => {
+    if (!leaving) return undefined;
+
+    const doneTimer = setTimeout(onDone, 650);
+    return () => clearTimeout(doneTimer);
+  }, [leaving, onDone]);
+
+  return (
+    <div
+      className={`splash ${leaving ? "splash-leaving" : ""}`}
+      role="status"
+      aria-live="polite"
+      aria-label="Loading AegisAgent"
+    >
+      <div className="splash-meta splash-meta-top">
+        <span>AEGISAGENT / PROTOTYPE 0.2</span>
+        <span>SECURE CONNECTION</span>
+      </div>
+
+      <div className="splash-center">
+        <div className="splash-radar">
+          <span className="radar-ring radar-ring-1" />
+          <span className="radar-ring radar-ring-2" />
+          <span className="radar-ring radar-ring-3" />
+          <div className="splash-logo">A</div>
+        </div>
+
+        <h1 className="splash-title">AEGISAGENT</h1>
+        <p className="splash-tagline">NETWORK INTELLIGENCE</p>
+
+        <div className="splash-progress">
+          <div className="splash-bar">
+            <div className="splash-bar-fill" />
+          </div>
+          <div className="splash-status">
+            <span key={step}>{SPLASH_STEPS[step]}...</span>
+            <span>{String(Math.min((step + 1) * 25, 100)).padStart(3, "0")}%</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="splash-meta splash-meta-bottom">
+        <span>OBSERVE</span>
+        <span>UNDERSTAND</span>
+        <span>ACT</span>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
-  const [activePage, setActivePage] = useState("Overview");
+  const [activePage, setActivePageState] = useState(pageFromHash);
   const [alerts, setAlerts] = useState(DEMO_ALERTS);
   const [selectedId, setSelectedId] = useState("AEG-001");
   const [query, setQuery] = useState("");
@@ -164,6 +293,14 @@ export default function App() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notice, setNotice] = useState("");
+  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
+  const [blocked, setBlocked] = useState(["198.51.100.23"]);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [compact, setCompact] = useState(false);
+  const [signedOut, setSignedOut] = useState(false);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
+  const hideSplash = useCallback(() => setShowSplash(false), []);
 
   const selectedAlert = alerts.find((alert) => alert.id === selectedId)
     || alerts[0]
@@ -217,12 +354,44 @@ export default function App() {
       );
     } finally {
       setLoading(false);
+      setInitialLoadDone(true);
     }
   }, [selectedId]);
 
   useEffect(() => {
     refreshAlerts();
   }, [refreshAlerts]);
+
+  const setActivePage = useCallback((page) => {
+    setActivePageState(page);
+    const slug = page.toLowerCase().replace(/ /g, "-");
+    if (window.location.hash !== `#${slug}`) {
+      window.history.pushState(null, "", `#${slug}`);
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  useEffect(() => {
+    const onNavigate = () => setActivePageState(pageFromHash());
+    window.addEventListener("hashchange", onNavigate);
+    window.addEventListener("popstate", onNavigate);
+    return () => {
+      window.removeEventListener("hashchange", onNavigate);
+      window.removeEventListener("popstate", onNavigate);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!autoRefresh) return undefined;
+    const timer = setInterval(refreshAlerts, 30000);
+    return () => clearInterval(timer);
+  }, [autoRefresh, refreshAlerts]);
+
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timer = setTimeout(() => setNotice(""), 5000);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   const filteredAlerts = useMemo(() => {
     return alerts.filter((alert) => {
@@ -239,9 +408,15 @@ export default function App() {
 
       const matchesQuery = searchable.includes(query.toLowerCase());
       const matchesSeverity =
-        severityFilter === "All" || alert.severity === severityFilter;
+        severityFilter === "All" ||
+        (severityFilter === "High + Critical"
+          ? ["High", "Critical"].includes(alert.severity)
+          : alert.severity === severityFilter);
       const matchesStatus =
-        statusFilter === "All" || alert.status === statusFilter;
+        statusFilter === "All" ||
+        (statusFilter === "Open cases"
+          ? OPEN_STATUSES.includes(alert.status)
+          : alert.status === statusFilter);
 
       return matchesQuery && matchesSeverity && matchesStatus;
     });
@@ -252,16 +427,92 @@ export default function App() {
     high: alerts.filter((a) =>
       ["High", "Critical"].includes(a.severity)
     ).length,
-    investigated: alerts.filter((a) =>
-      ["Investigating", "Under review"].includes(a.status)
-    ).length,
+    investigated: alerts.filter((a) => OPEN_STATUSES.includes(a.status)).length,
     critical: alerts.filter((a) => a.severity === "Critical").length,
   }), [alerts]);
 
   function openAlert(alert) {
     setSelectedId(alert.id);
     setNotice("");
+    requestAnimationFrame(() => {
+      document
+        .getElementById("investigation")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
+
+  function openAlertById(id) {
+    const match = alerts.find((alert) => alert.id === id);
+    if (match) {
+      setSelectedId(match.id);
+      setQuery("");
+      setSeverityFilter("All");
+      setStatusFilter("All");
+      setActivePage("Threats");
+    } else {
+      setNotice(`Alert ${id} is no longer in the loaded data.`);
+    }
+  }
+
+  function goToThreats({ severity = "All", status = "All" } = {}) {
+    setQuery("");
+    setSeverityFilter(severity);
+    setStatusFilter(status);
+    setActivePage("Threats");
+  }
+
+  function clearFilters() {
+    setQuery("");
+    setSeverityFilter("All");
+    setStatusFilter("All");
+  }
+
+  function addNote(alert, text) {
+    const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    setAlerts((current) =>
+      current.map((item) =>
+        item.id === alert.id
+          ? { ...item, notes: [...(item.notes || []), { text, time }] }
+          : item
+      )
+    );
+    setNotice("Note added to this alert (session only).");
+  }
+
+  function blockIp(ip) {
+    setBlocked((current) => (current.includes(ip) ? current : [...current, ip]));
+    setNotice(`${ip} added to the blocklist (simulation only).`);
+  }
+
+  function unblockIp(ip) {
+    setBlocked((current) => current.filter((item) => item !== ip));
+    setNotice(`${ip} removed from the blocklist.`);
+  }
+
+  async function copyText(text, message) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setNotice(message);
+    } catch {
+      setNotice(`Could not access the clipboard. Value: ${text}`);
+    }
+  }
+
+  function exportCsv() {
+    downloadFile("aegisagent-alerts.csv", alertsToCsv(alerts), "text/csv");
+    setNotice(`Exported ${alerts.length} alerts as CSV.`);
+  }
+
+  const actions = {
+    blocked,
+    blockIp,
+    unblockIp,
+    clearBlocked: () => setBlocked([]),
+    updateStatus,
+    addNote,
+    copyText,
+    notify: setNotice,
+  };
 
   function updateStatus(alert, status) {
     setAlerts((current) =>
@@ -271,7 +522,7 @@ export default function App() {
     );
 
     setNotice(
-      `Status changed to "${status}" in this session. Connect a backend update endpoint to persist it.`
+      `${alert.id} status changed to "${status}" in this session. Connect a backend update endpoint to persist it.`
     );
   }
 
@@ -288,8 +539,16 @@ export default function App() {
     URL.revokeObjectURL(url);
   }
 
+  if (signedOut) {
+    return <SignedOutScreen onSignIn={() => setSignedOut(false)} />;
+  }
+
   return (
-    <div className="app-shell">
+    <ActionsContext.Provider value={actions}>
+    <div className={`app-shell ${compact ? "compact" : ""}`}>
+      {showSplash && (
+        <SplashScreen ready={initialLoadDone} onDone={hideSplash} />
+      )}
       <aside className={`sidebar ${mobileMenuOpen ? "sidebar-open" : ""}`}>
         <a className="brand" href="#overview" onClick={() => {
           setActivePage("Overview");
@@ -324,7 +583,19 @@ export default function App() {
         </nav>
 
         <div className="sidebar-bottom">
-          <div className="connection-box">
+          <div
+            className="connection-box connection-box-action"
+            role="button"
+            tabIndex={0}
+            title="Retry connection to the alerts API"
+            onClick={refreshAlerts}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                refreshAlerts();
+              }
+            }}
+          >
             <span className={`connection-dot ${connection === "Connected" ? "connected" : ""}`} />
             <div>
               <strong>{connection}</strong>
@@ -369,11 +640,26 @@ export default function App() {
               <span className="connection-dot" />
               {connection}
             </span>
-            <span className="user-label">MJ / ADMIN</span>
+            <NotificationMenu
+              notifications={notifications}
+              setNotifications={setNotifications}
+              onOpenAlert={openAlertById}
+            />
+            <UserMenu
+              autoRefresh={autoRefresh}
+              setAutoRefresh={(value) => {
+                setAutoRefresh(value);
+                setNotice(value ? "Auto-refresh enabled (every 30 seconds)." : "Auto-refresh disabled.");
+              }}
+              compact={compact}
+              setCompact={setCompact}
+              onSignOut={() => setSignedOut(true)}
+            />
           </div>
         </header>
 
         <div className="page-content">
+          {activePage === "Overview" && (
           <section className="hero">
             <div className="hero-copy">
               <div className="eyebrow">
@@ -419,22 +705,12 @@ export default function App() {
               </div>
             </div>
 
-            <div className="hero-visual" aria-label="Abstract geometric security illustration">
+            <div className="hero-visual" aria-label="Dashboard preview">
               <div className="visual-topline">
                 <span>AEGIS / 001</span>
                 <span>SECURITY INTELLIGENCE</span>
               </div>
-
-              <div className="visual-grid">
-                <div className="visual-square square-one" />
-                <div className="visual-square square-two" />
-                <div className="visual-square square-three" />
-                <div className="visual-circle">
-                  <div className="circle-inner" />
-                </div>
-                <div className="visual-bar" />
-                <div className="visual-crosshair" />
-              </div>
+              <HeroDashboardMock alerts={alerts} stats={stats} />
 
               <div className="visual-bottomline">
                 <strong>Observe.</strong>
@@ -448,6 +724,7 @@ export default function App() {
               <span>01 — SECURITY OVERVIEW</span>
             </div>
           </section>
+          )}
 
           {error && (
             <div className="notice notice-warning" role="status">
@@ -456,14 +733,17 @@ export default function App() {
           )}
 
           {notice && (
-            <div className="notice" role="status">
-              {notice}
+            <div className="toast" role="status" key={notice}>
+              <span>{notice}</span>
+              <button aria-label="Dismiss message" onClick={() => setNotice("")}>×</button>
             </div>
           )}
 
           {activePage === "Overview" && (
             <OverviewPage
               stats={stats}
+              allAlerts={alerts}
+              goToThreats={goToThreats}
               alerts={filteredAlerts}
               selectedAlert={selectedAlert}
               query={query}
@@ -488,6 +768,8 @@ export default function App() {
               setStatusFilter={setStatusFilter}
               openAlert={openAlert}
               exportAlerts={exportAlerts}
+              exportCsv={exportCsv}
+              clearFilters={clearFilters}
               loading={loading}
               refreshAlerts={refreshAlerts}
             />
@@ -517,11 +799,14 @@ export default function App() {
         </div>
       </main>
     </div>
+    </ActionsContext.Provider>
   );
 }
 
 function OverviewPage({
   stats,
+  allAlerts,
+  goToThreats,
   alerts,
   selectedAlert,
   query,
@@ -550,19 +835,36 @@ function OverviewPage({
           value={stats.total}
           note="Records currently loaded"
           variant="green"
+          onClick={() => goToThreats()}
         />
         <StatCard
           label="High / critical"
           value={stats.high}
           note="Requires attention"
           variant="coral"
+          onClick={() => goToThreats({ severity: "High + Critical" })}
         />
         <StatCard
           label="Under investigation"
           value={stats.investigated}
           note="Open or under review"
           variant="plain"
+          onClick={() => goToThreats({ status: "Open cases" })}
         />
+      </div>
+
+      <div className="overview-split">
+        <TrafficPanel />
+        <section className="panel">
+          <div className="panel-head">
+            <span className="panel-title">SEVERITY MIX</span>
+          </div>
+          <SeverityBreakdown
+            alerts={allAlerts}
+            onSelect={(severity) => goToThreats({ severity })}
+          />
+          <p className="panel-empty">Select a level to open those alerts.</p>
+        </section>
       </div>
 
       <section className="content-section">
@@ -588,7 +890,7 @@ function OverviewPage({
           </span>
         </div>
 
-        <ThreatTable alerts={alerts} openAlert={openAlert} />
+        <ThreatTable alerts={alerts} openAlert={openAlert} selectedId={selectedAlert?.id} />
         <div className="table-footer">
           <span>Data is based on the currently loaded records.</span>
           <span>
@@ -625,9 +927,14 @@ function ThreatsPage({
   setStatusFilter,
   openAlert,
   exportAlerts,
+  exportCsv,
+  clearFilters,
   loading,
   refreshAlerts,
 }) {
+  const filtersActive =
+    query !== "" || severityFilter !== "All" || statusFilter !== "All";
+
   return (
     <>
       <SectionHeading
@@ -635,6 +942,9 @@ function ThreatsPage({
         title="Threat intelligence"
         description="Search, filter, and inspect the alerts returned by the detection system."
       >
+        <button className="button-secondary" onClick={exportCsv}>
+          Export CSV
+        </button>
         <button className="button-secondary" onClick={exportAlerts}>
           Export JSON
         </button>
@@ -658,6 +968,7 @@ function ThreatsPage({
           aria-label="Filter by severity"
         >
           <option>All</option>
+          <option>High + Critical</option>
           <option>Critical</option>
           <option>High</option>
           <option>Medium</option>
@@ -671,19 +982,28 @@ function ThreatsPage({
           aria-label="Filter by status"
         >
           <option>All</option>
+          <option>Open cases</option>
           <option>New</option>
           <option>Investigating</option>
           <option>Under review</option>
+          <option>Escalated</option>
           <option>Resolved</option>
         </select>
       </div>
 
       <div className="table-footer">
-        <span>{alerts.length} matching events</span>
+        <span>
+          {alerts.length} matching events
+          {filtersActive && (
+            <button className="text-button inline-button" onClick={clearFilters}>
+              Clear filters
+            </button>
+          )}
+        </span>
         <span>Severity is supplied by the detection pipeline.</span>
       </div>
 
-      <ThreatTable alerts={alerts} openAlert={openAlert} />
+      <ThreatTable alerts={alerts} openAlert={openAlert} selectedId={selectedAlert?.id} />
 
       {selectedAlert && (
         <section className="content-section">
@@ -716,13 +1036,26 @@ function NetworkPage({ alerts, selectedAlert, openAlert }) {
         <StatCard label="Events loaded" value={alerts.length} note="Current alert dataset" variant="coral" />
       </div>
 
+      <div className="content-section">
+        <LiveTrafficPanel />
+      </div>
+
+      <div className="two-col">
+        <ProtocolMix />
+        <BlocklistPanel />
+      </div>
+
+      <TopTalkers />
+
+      <DeviceScan />
+
       <section className="content-section">
         <SectionHeading
           eyebrow="OBSERVED CONNECTIONS"
           title="Traffic event list"
           description="This view is based on detected events, not a live packet stream."
         />
-        <ThreatTable alerts={alerts} openAlert={openAlert} />
+        <ThreatTable alerts={alerts} openAlert={openAlert} selectedId={selectedAlert?.id} />
       </section>
 
       {selectedAlert && (
@@ -736,6 +1069,17 @@ function NetworkPage({ alerts, selectedAlert, openAlert }) {
 }
 
 function AnalysisPage({ alerts, selectedAlert, openAlert }) {
+  const [results, setResults] = useState({});
+  const [runningId, setRunningId] = useState(null);
+
+  function runAnalysis(alert) {
+    setRunningId(alert.id);
+    setTimeout(() => {
+      setResults((current) => ({ ...current, [alert.id]: generateAnalysis(alert) }));
+      setRunningId((current) => (current === alert.id ? null : current));
+    }, 1800);
+  }
+
   return (
     <>
       <SectionHeading
@@ -748,15 +1092,15 @@ function AnalysisPage({ alerts, selectedAlert, openAlert }) {
         <div className="eyebrow">INVESTIGATION WORKFLOW</div>
         <h3>Evidence first. Recommendations second.</h3>
         <p>
-          The investigation panel displays analysis returned with an alert.
-          It does not fabricate an AI response when the backend has not
-          supplied one.
+          Choose an event, run the analysis, then ask follow-up questions.
+          In this demo the AI output is simulated; a connected backend
+          would supply real analysis.
         </p>
       </div>
 
       <section className="content-section">
         <SectionHeading eyebrow="AVAILABLE EVENTS" title="Choose an investigation" />
-        <ThreatTable alerts={alerts} openAlert={openAlert} />
+        <ThreatTable alerts={alerts} openAlert={openAlert} selectedId={selectedAlert?.id} />
       </section>
 
       {selectedAlert && (
@@ -765,24 +1109,101 @@ function AnalysisPage({ alerts, selectedAlert, openAlert }) {
             eyebrow="INVESTIGATION RESULT"
             title={selectedAlert.attack_type}
           />
+          <AnalysisRunner
+            alert={selectedAlert}
+            result={results[selectedAlert.id]}
+            running={runningId === selectedAlert.id}
+            onRun={() => runAnalysis(selectedAlert)}
+            onDownload={() =>
+              downloadFile(
+                `${selectedAlert.id}-report.md`,
+                buildReport(selectedAlert, results[selectedAlert.id]),
+                "text/markdown"
+              )
+            }
+          />
           <InvestigationPanel alert={selectedAlert} />
+          <AiAssistant key={selectedAlert.id} alert={selectedAlert} />
         </section>
       )}
     </>
   );
 }
 
-function StatCard({ label, value, note, variant }) {
+function StatCard({ label, value, note, variant, onClick }) {
+  const clickable = typeof onClick === "function";
+
   return (
-    <article className={`stat-card stat-${variant}`}>
+    <article
+      className={`stat-card stat-${variant} ${clickable ? "stat-clickable" : ""}`}
+      {...(clickable
+        ? {
+            role: "button",
+            tabIndex: 0,
+            onClick,
+            onKeyDown: (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onClick();
+              }
+            },
+          }
+        : {})}
+    >
       <div className="stat-label">{label}</div>
       <div className="stat-value">{value}</div>
-      <div className="stat-note">{note}</div>
+      <div className="stat-note">
+        {note}
+        {clickable && <span className="stat-link"> · View ↗</span>}
+      </div>
     </article>
   );
 }
 
-function ThreatTable({ alerts, openAlert }) {
+const SEVERITY_RANK = { Critical: 4, High: 3, Medium: 2, Low: 1 };
+
+const TABLE_COLUMNS = [
+  { key: "attack_type", label: "EVENT" },
+  { key: "source_ip", label: "SOURCE IP" },
+  { key: "destination_ip", label: "DESTINATION IP" },
+  { key: "severity", label: "SEVERITY" },
+  { key: "status", label: "STATUS" },
+  { key: "timestamp", label: "TIME" },
+];
+
+function sortValue(alert, key) {
+  if (key === "severity") return SEVERITY_RANK[alert.severity] || 0;
+  if (key === "timestamp") return new Date(alert.timestamp).getTime() || 0;
+  return String(alert[key] ?? "").toLowerCase();
+}
+
+function ThreatTable({ alerts, openAlert, selectedId, pageSize = 6 }) {
+  const [sort, setSort] = useState({ key: null, direction: "asc" });
+  const [page, setPage] = useState(0);
+
+  const sorted = useMemo(() => {
+    if (!sort.key) return alerts;
+    const factor = sort.direction === "asc" ? 1 : -1;
+    return [...alerts].sort((a, b) => {
+      const left = sortValue(a, sort.key);
+      const right = sortValue(b, sort.key);
+      return left < right ? -factor : left > right ? factor : 0;
+    });
+  }, [alerts, sort]);
+
+  const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const currentPage = Math.min(page, pageCount - 1);
+  const visible = sorted.slice(currentPage * pageSize, currentPage * pageSize + pageSize);
+
+  function toggleSort(key) {
+    setPage(0);
+    setSort((current) =>
+      current.key === key
+        ? { key, direction: current.direction === "asc" ? "desc" : "asc" }
+        : { key, direction: key === "timestamp" || key === "severity" ? "desc" : "asc" }
+    );
+  }
+
   if (!alerts.length) {
     return (
       <div className="empty-state">
@@ -793,43 +1214,79 @@ function ThreatTable({ alerts, openAlert }) {
   }
 
   return (
-    <div className="table-wrap">
-      <table className="threat-table">
-        <thead>
-          <tr>
-            <th>EVENT</th>
-            <th>SOURCE IP</th>
-            <th>DESTINATION IP</th>
-            <th>SEVERITY</th>
-            <th>STATUS</th>
-            <th>TIME</th>
-          </tr>
-        </thead>
-        <tbody>
-          {alerts.map((alert) => (
-            <tr key={alert.id}>
-              <td>
-                <button className="table-event" onClick={() => openAlert(alert)}>
-                  <strong>{alert.attack_type}</strong>
-                  <small>{alert.id}</small>
-                </button>
-              </td>
-              <td className="mono">{alert.source_ip}</td>
-              <td className="mono">{alert.destination_ip}</td>
-              <td><Severity value={alert.severity} /></td>
-              <td><span className="status-label">{alert.status}</span></td>
-              <td className="time-cell">{formatTime(alert.timestamp)}</td>
+    <>
+      <div className="table-wrap">
+        <table className="threat-table">
+          <thead>
+            <tr>
+              {TABLE_COLUMNS.map((column) => {
+                const active = sort.key === column.key;
+                return (
+                  <th
+                    key={column.key}
+                    aria-sort={active ? (sort.direction === "asc" ? "ascending" : "descending") : "none"}
+                  >
+                    <button className="th-sort" onClick={() => toggleSort(column.key)}>
+                      {column.label}
+                      <span aria-hidden="true">
+                        {active ? (sort.direction === "asc" ? " ▲" : " ▼") : " ↕"}
+                      </span>
+                    </button>
+                  </th>
+                );
+              })}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {visible.map((alert) => (
+              <tr key={alert.id} className={alert.id === selectedId ? "row-selected" : ""}>
+                <td>
+                  <button className="table-event" onClick={() => openAlert(alert)}>
+                    <strong>{alert.attack_type}</strong>
+                    <small>{alert.id}</small>
+                  </button>
+                </td>
+                <td className="mono">{alert.source_ip}</td>
+                <td className="mono">{alert.destination_ip}</td>
+                <td><Severity value={alert.severity} /></td>
+                <td><span className="status-label">{alert.status}</span></td>
+                <td className="time-cell">{formatTime(alert.timestamp)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {pageCount > 1 && (
+        <div className="pagination">
+          <span>
+            Page {currentPage + 1} of {pageCount}
+          </span>
+          <div>
+            <button
+              className="chip-button"
+              onClick={() => setPage(currentPage - 1)}
+              disabled={currentPage === 0}
+            >
+              ← Previous
+            </button>
+            <button
+              className="chip-button"
+              onClick={() => setPage(currentPage + 1)}
+              disabled={currentPage >= pageCount - 1}
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
 function InvestigationPanel({ alert }) {
   return (
-    <div className="investigation-layout">
+    <div className="investigation-layout" id="investigation">
       <article className="detail-card">
         <div className="detail-overline">DETECTED EVENT</div>
         <div className="detail-title-row">
@@ -882,6 +1339,8 @@ function InvestigationPanel({ alert }) {
               "No recommendation has been returned. Investigate the evidence before taking action."}
           </p>
         </div>
+
+        <AlertActions key={alert.id} alert={alert} />
       </article>
     </div>
   );
