@@ -1,7 +1,11 @@
 import json
+from pathlib import Path
 from collections import defaultdict
 
-with open("network_traffic.json", "r") as file:
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+TRAFFIC_FILE = PROJECT_ROOT / "data" / "network_traffic.json"
+
+with TRAFFIC_FILE.open("r", encoding="utf-8") as file:
     traffic = json.load(file)
 
 ports_by_source = defaultdict(set)
