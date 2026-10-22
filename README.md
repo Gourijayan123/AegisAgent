@@ -1,31 +1,82 @@
-## Improvements Made
+# AegisAgent
 
-### 1. Fixed Network Traffic File Path
+AegisAgent captures network traffic, detects potential TCP port scans, and
+creates structured security reports for AI-assisted investigation.
 
-**Problem:** The threat detector attempted to load `network_traffic.json` from the current working directory, causing a `FileNotFoundError` because the file is stored in the `data/` directory.
+## Setup
 
-**Improvement:** Used Python's `pathlib.Path` to resolve the project root relative to the script and locate `data/network_traffic.json`.
+Install the Python dependency:
 
-**Benefit:** The detector can locate the traffic file without depending on the terminal's current working directory.
+```bash
+python -m pip install -r requirements.txt
+```
 
-**File modified:** `detection/threat_detector.py`
+On Windows, install [Npcap](https://npcap.com/) and run the network monitor
+from an elevated terminal so Scapy can capture packets.
 
-### 2. Improved TCP Port-Scan Detection
+## Workflow
 
-**Problem:** The original detector counted unique TCP destination ports by source IP across the entire capture. This could combine traffic to different target devices and did not consider when the connections occurred.
+1. Capture traffic:
 
-**Improvements made:**
-- Grouped packets by source IP and destination IP.
-- Added a configurable 60-second sliding time window.
-- Counted unique destination ports instead of total packets.
-- Added timestamp parsing and validation to handle missing or invalid timestamps.
-- Returned structured alert dictionaries containing the source IP, destination IP, timestamp, severity, and detection evidence.
-- Limited detection to one alert per source-target pair per analysis run.
+   ```bash
+   python detection/network_monitor.py
+   ```
 
-**Detection rule:** Flag a possible TCP port scan when a source contacts at least five unique TCP destination ports on the same target within 60 seconds.
+   The monitor captures 20 packets and saves IP traffic to
+   `data/network_traffic.json`.
 
-**Benefit:** Detection focuses on concentrated port activity against a specific target, reducing misleading results from unrelated connections.
+2. Detect threats and generate reports:
 
-**File modified:** `detection/threat_detector.py`
+   ```bash
+   python detection/threat_detector.py
+   ```
 
-**Current limitation:** The detector analyzes a saved JSON capture and prints the resulting alerts. Continuous live-stream analysis and saving alerts to `data/alerts.json` have not yet been implemented.
+   The detector reads the traffic capture and writes AI-ready reports to
+   `data/security_reports.json`.
+
+## Detection Rule
+
+A potential TCP port scan is detected when one source IP contacts at least
+five unique destination ports on the same destination IP within 60 seconds.
+Each source-target pair produces at most one report per analysis run.
+
+## Security Report Format
+
+```json
+{
+  "source_ip": "192.168.1.20",
+  "threat_category": "Port Scan",
+  "severity": "High",
+  "evidence": [
+    "Multiple destination ports contacted",
+    "High connection frequency"
+  ],
+  "threat_intelligence": {
+    "reputation": "Unknown"
+  },
+  "recommended_investigation": [
+    "Review connection history",
+    "Check destination host activity"
+  ]
+}
+```
+
+Threat intelligence currently uses the offline `Unknown` fallback. Connect a
+reputation provider in `detection/threat_intelligence.py` when one is available.
+
+## Detection Modules
+
+- `detection/network_monitor.py` captures packet data with Scapy.
+- `detection/security_rules.py` identifies port-scan findings.
+- `detection/severity.py` assigns report severity.
+- `detection/threat_intelligence.py` enriches IP reputation data.
+- `detection/cybersecurity_context.py` builds AI-ready reports.
+- `detection/threat_detector.py` coordinates detection and report output.
+
+## Tests
+
+Run the detection tests with:
+
+```bash
+python -m unittest discover -s detection -p "test*.py" -v
+```
