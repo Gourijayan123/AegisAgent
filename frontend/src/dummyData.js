@@ -250,7 +250,7 @@ export function makeLiveSeed(count = 40) {
 }
 
 export const PROTOCOL_MIX = [
-  { name: "TCP", value: 52, color: "#0b1c0d" },
+  { name: "TCP", value: 52, color: "#0ea5e9" },
   { name: "UDP", value: 21, color: "#43f58a" },
   { name: "HTTPS", value: 14, color: "#176d39" },
   { name: "DNS", value: 7, color: "#dfb94d" },
