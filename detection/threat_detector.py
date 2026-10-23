@@ -1,26 +1,42 @@
+"""Run the detection engine over a saved capture and print the alerts.
+
+Usage:
+    python detection/threat_detector.py [data/network_traffic.json]
+"""
+
 import json
-from collections import defaultdict
+import sys
+from pathlib import Path
 
-with open("network_traffic.json", "r") as file:
-    traffic = json.load(file)
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "backend"))
 
-ports_by_source = defaultdict(set)
+from detector import ThreatMonitor  # noqa: E402
+from sources import replay_file  # noqa: E402
 
-for packet in traffic:
-    if packet["protocol"] == "TCP":
-        src_ip = packet["src_ip"]
-        dst_port = packet["dst_port"]
 
-        if dst_port is not None:
-            ports_by_source[src_ip].add(dst_port)
+def main() -> None:
+    path = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "data" / "network_traffic.json"
+    if not path.exists():
+        sys.exit(f"Capture file not found: {path}")
 
-for src_ip, ports in ports_by_source.items():
+    monitor = ThreatMonitor(source="replay")
+    count = replay_file(monitor, str(path))
+    alerts = list(reversed(monitor.latest(500)))
 
-    print("\nSource IP:", src_ip)
-    print("Unique destination ports:", len(ports))
+    print(f"Analysed {count} packets from {path}")
+    if not alerts:
+        print("Status: Normal - no threats detected")
+        return
+    for a in alerts:
+        print(f"\n[{a['severity'].upper()}] {a['attack_type']}  {a['source_ip']} -> {a['destination_ip']}"
+              f"  (confidence {a['confidence']}%, {a['packet_count']} packets)")
+        for line in a["evidence"]:
+            print(f"  - {line}")
+        print(f"  Recommendation: {a['recommendation']}")
+    print(f"\n{len(alerts)} threat(s) detected")
+    sys.exit(1)
 
-    if len(ports) >= 5:
-        print("THREAT DETECTED: Possible Port Scan")
-        print("Severity: High")
-    else:
-        print("Status: Normal")
+
+if __name__ == "__main__":
+    main()
