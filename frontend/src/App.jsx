@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import {
   DEMO_ALERTS,
@@ -25,6 +25,10 @@ import {
 const API_URL = (
   import.meta.env.VITE_API_URL || "http://localhost:8000"
 ).replace(/\/$/, "");
+
+// How often the dashboard polls the backend for new detections.
+const REFRESH_MS = 5000;
+const REQUEST_TIMEOUT_MS = 8000;
 
 const OPEN_STATUSES = ["Investigating", "Under review", "Escalated"];
 
@@ -295,12 +299,20 @@ export default function App() {
   const [notice, setNotice] = useState("");
   const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
   const [blocked, setBlocked] = useState(["198.51.100.23"]);
-  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [dataSource, setDataSource] = useState("");
+  const selectedIdRef = useRef("AEG-001");
+  const hasLiveDataRef = useRef(false);
+  const knownIdsRef = useRef(new Set());
   const [compact, setCompact] = useState(false);
   const [signedOut, setSignedOut] = useState(false);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
   const hideSplash = useCallback(() => setShowSplash(false), []);
+
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
 
   const selectedAlert = alerts.find((alert) => alert.id === selectedId)
     || alerts[0]
@@ -308,11 +320,14 @@ export default function App() {
 
   const refreshAlerts = useCallback(async () => {
     setLoading(true);
-    setError("");
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
     try {
       const response = await fetch(`${API_URL}/api/alerts/latest`, {
         headers: { Accept: "application/json" },
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -323,40 +338,81 @@ export default function App() {
 
       const items = Array.isArray(result)
         ? result
-        : Array.isArray(result.alerts)
+        : result && Array.isArray(result.alerts)
           ? result.alerts
-          : result.threat_detected !== undefined
-            ? [result]
-            : result.attack_type || result.threat_type
-              ? [result]
-              : null;
+          : null;
 
       if (!items) {
         throw new Error("Unexpected response format from the alerts API.");
       }
 
-      const normalized = items.map(normalizeAlert);
+      const fresh = items.map(normalizeAlert);
 
-      setAlerts(normalized);
+      // Announce newly detected high-severity threats (not on the first load).
+      if (hasLiveDataRef.current) {
+        const arrivals = fresh.filter(
+          (alert) =>
+            !knownIdsRef.current.has(alert.id) &&
+            (alert.severity === "Critical" || alert.severity === "High")
+        );
+        if (arrivals.length) {
+          setNotifications((current) => [
+            ...arrivals.map((alert) => ({
+              id: `live-${alert.id}`,
+              alertId: alert.id,
+              text: `${alert.severity}: ${alert.attack_type} from ${alert.source_ip}`,
+              time: "just now",
+              read: false,
+            })),
+            ...current,
+          ].slice(0, 30));
+        }
+      }
+      if (!hasLiveDataRef.current) {
+        // First real response: drop notifications that referred to demo alerts.
+        setNotifications([]);
+      }
+      knownIdsRef.current = new Set(fresh.map((alert) => alert.id));
+      hasLiveDataRef.current = true;
+
+      // Keep analyst changes (status, notes) made in this session across polls.
+      setAlerts((current) => {
+        const local = new Map(current.map((alert) => [alert.id, alert]));
+        return fresh.map((alert) => {
+          const mine = local.get(alert.id);
+          return mine
+            ? { ...alert, status: mine.status, notes: mine.notes }
+            : alert;
+        });
+      });
+
+      setDataSource(result?.mode || "");
       setConnection("Connected");
+      setError("");
       setLastUpdated(new Date());
 
-      if (
-        normalized.length &&
-        !normalized.some((alert) => alert.id === selectedId)
-      ) {
-        setSelectedId(normalized[0].id);
+      if (fresh.length && !fresh.some((alert) => alert.id === selectedIdRef.current)) {
+        setSelectedId(fresh[0].id);
       }
     } catch (err) {
-      setConnection("Demo mode");
-      setError(
-        `Could not load live alerts: ${err.message}. Displaying demonstration data.`
-      );
+      const reason = err.name === "AbortError" ? "request timed out" : err.message;
+      if (hasLiveDataRef.current) {
+        // Never relabel real detections as demo data; say the feed is stale.
+        setConnection("Disconnected");
+        setError(`Connection to the alerts API lost (${reason}). Showing the last alerts received.`);
+      } else {
+        setConnection("Demo mode");
+        setError(
+          `Could not load live alerts: ${reason}. Displaying demonstration data. ` +
+            `Start the backend (see README) to see real detections.`
+        );
+      }
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
       setInitialLoadDone(true);
     }
-  }, [selectedId]);
+  }, []);
 
   useEffect(() => {
     refreshAlerts();
@@ -383,7 +439,7 @@ export default function App() {
 
   useEffect(() => {
     if (!autoRefresh) return undefined;
-    const timer = setInterval(refreshAlerts, 30000);
+    const timer = setInterval(refreshAlerts, REFRESH_MS);
     return () => clearInterval(timer);
   }, [autoRefresh, refreshAlerts]);
 
@@ -601,8 +657,14 @@ export default function App() {
               <strong>{connection}</strong>
               <p>
                 {connection === "Connected"
-                  ? "Live API response"
-                  : "Using sample records"}
+                  ? dataSource === "simulated"
+                    ? "Simulated traffic (demo backend)"
+                    : dataSource === "replay"
+                      ? "Replayed capture"
+                      : "Live detections"
+                  : connection === "Disconnected"
+                    ? "Showing last alerts received"
+                    : "Using sample records"}
               </p>
             </div>
           </div>
@@ -649,7 +711,7 @@ export default function App() {
               autoRefresh={autoRefresh}
               setAutoRefresh={(value) => {
                 setAutoRefresh(value);
-                setNotice(value ? "Auto-refresh enabled (every 30 seconds)." : "Auto-refresh disabled.");
+                setNotice(value ? `Auto-refresh enabled (every ${REFRESH_MS / 1000} seconds).` : "Auto-refresh disabled.");
               }}
               compact={compact}
               setCompact={setCompact}

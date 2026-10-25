@@ -823,7 +823,7 @@ export function UserMenu({ autoRefresh, setAutoRefresh, compact, setCompact, onS
           </div>
           <Toggle
             label="Auto-refresh alerts"
-            hint="Every 30 seconds"
+            hint="Every 5 seconds"
             checked={autoRefresh}
             onChange={setAutoRefresh}
           />
