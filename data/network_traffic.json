@@ -1,102 +1,202 @@
 [
     {
-        "timestamp": "2026-10-23T11:47:54.182583",
-        "src_ip": "172.25.9.234",
-        "dst_ip": "239.255.255.250",
-        "protocol": "UDP",
-        "src_port": 54577,
-        "dst_port": 1900,
-        "tcp_flags": null,
-        "packet_size": 212
-    },
-    {
-        "timestamp": "2026-10-23T11:47:54.182723",
-        "src_ip": "172.25.3.89",
-        "dst_ip": "239.255.255.250",
-        "protocol": "UDP",
-        "src_port": 1900,
-        "dst_port": 1900,
-        "tcp_flags": null,
-        "packet_size": 549
-    },
-    {
-        "timestamp": "2026-10-23T11:47:54.182816",
-        "src_ip": "172.25.2.107",
-        "dst_ip": "224.0.0.251",
-        "protocol": "UDP",
-        "src_port": 5353,
-        "dst_port": 5353,
-        "tcp_flags": null,
-        "packet_size": 327
-    },
-    {
-        "timestamp": "2026-10-23T11:47:54.182913",
-        "src_ip": "172.25.3.251",
-        "dst_ip": "224.0.0.251",
-        "protocol": "UDP",
-        "src_port": 5353,
-        "dst_port": 5353,
-        "tcp_flags": null,
-        "packet_size": 119
-    },
-    {
-        "timestamp": "2026-10-23T11:47:54.182993",
-        "src_ip": "172.25.9.179",
-        "dst_ip": "255.255.255.255",
-        "protocol": "UDP",
-        "src_port": 57573,
-        "dst_port": 137,
-        "tcp_flags": null,
-        "packet_size": 92
-    },
-    {
-        "timestamp": "2026-10-23T11:47:54.183081",
-        "src_ip": "172.25.3.89",
-        "dst_ip": "239.255.255.250",
-        "protocol": "UDP",
-        "src_port": 1900,
-        "dst_port": 1900,
-        "tcp_flags": null,
-        "packet_size": 537
-    },
-    {
-        "timestamp": "2026-10-23T11:47:54.183137",
-        "src_ip": "172.25.11.225",
-        "dst_ip": "224.0.0.251",
-        "protocol": "UDP",
-        "src_port": 5353,
-        "dst_port": 5353,
-        "tcp_flags": null,
-        "packet_size": 221
-    },
-    {
-        "timestamp": "2026-10-23T11:47:54.183238",
-        "src_ip": "172.25.11.245",
-        "dst_ip": "104.18.32.47",
+        "timestamp": "2026-10-27T20:44:53.052694",
+        "src_ip": "127.0.0.1",
+        "dst_ip": "127.0.0.1",
         "protocol": "TCP",
-        "src_port": 54182,
-        "dst_port": 443,
-        "tcp_flags": "A",
-        "packet_size": 55
+        "src_port": 61703,
+        "dst_port": 22,
+        "tcp_flags": "S",
+        "packet_size": 56
     },
     {
-        "timestamp": "2026-10-23T11:47:54.183343",
-        "src_ip": "172.25.12.49",
-        "dst_ip": "224.0.0.251",
-        "protocol": "UDP",
-        "src_port": 5353,
-        "dst_port": 5353,
-        "tcp_flags": null,
-        "packet_size": 486
+        "timestamp": "2026-10-27T20:44:53.053009",
+        "src_ip": "127.0.0.1",
+        "dst_ip": "127.0.0.1",
+        "protocol": "TCP",
+        "src_port": 22,
+        "dst_port": 61703,
+        "tcp_flags": "RA",
+        "packet_size": 44
     },
     {
-        "timestamp": "2026-10-23T11:47:54.183431",
-        "src_ip": "172.25.2.23",
-        "dst_ip": "172.25.31.255",
-        "protocol": "UDP",
-        "src_port": 27036,
-        "dst_port": 27036,
-        "tcp_flags": null,
-        "packet_size": 82
+        "timestamp": "2026-10-27T20:44:53.053176",
+        "src_ip": "127.0.0.1",
+        "dst_ip": "127.0.0.1",
+        "protocol": "TCP",
+        "src_port": 61704,
+        "dst_port": 25,
+        "tcp_flags": "S",
+        "packet_size": 56
+    },
+    {
+        "timestamp": "2026-10-27T20:44:53.053326",
+        "src_ip": "127.0.0.1",
+        "dst_ip": "127.0.0.1",
+        "protocol": "TCP",
+        "src_port": 25,
+        "dst_port": 61704,
+        "tcp_flags": "RA",
+        "packet_size": 44
+    },
+    {
+        "timestamp": "2026-10-27T20:44:53.053463",
+        "src_ip": "127.0.0.1",
+        "dst_ip": "127.0.0.1",
+        "protocol": "TCP",
+        "src_port": 61705,
+        "dst_port": 23,
+        "tcp_flags": "S",
+        "packet_size": 56
+    },
+    {
+        "timestamp": "2026-10-27T20:44:53.053600",
+        "src_ip": "127.0.0.1",
+        "dst_ip": "127.0.0.1",
+        "protocol": "TCP",
+        "src_port": 23,
+        "dst_port": 61705,
+        "tcp_flags": "RA",
+        "packet_size": 44
+    },
+    {
+        "timestamp": "2026-10-27T20:44:53.053734",
+        "src_ip": "127.0.0.1",
+        "dst_ip": "127.0.0.1",
+        "protocol": "TCP",
+        "src_port": 61706,
+        "dst_port": 21,
+        "tcp_flags": "S",
+        "packet_size": 56
+    },
+    {
+        "timestamp": "2026-10-27T20:44:53.053884",
+        "src_ip": "127.0.0.1",
+        "dst_ip": "127.0.0.1",
+        "protocol": "TCP",
+        "src_port": 21,
+        "dst_port": 61706,
+        "tcp_flags": "RA",
+        "packet_size": 44
+    },
+    {
+        "timestamp": "2026-10-27T20:44:53.054027",
+        "src_ip": "127.0.0.1",
+        "dst_ip": "127.0.0.1",
+        "protocol": "TCP",
+        "src_port": 61707,
+        "dst_port": 39,
+        "tcp_flags": "S",
+        "packet_size": 56
+    },
+    {
+        "timestamp": "2026-10-27T20:44:53.054163",
+        "src_ip": "127.0.0.1",
+        "dst_ip": "127.0.0.1",
+        "protocol": "TCP",
+        "src_port": 39,
+        "dst_port": 61707,
+        "tcp_flags": "RA",
+        "packet_size": 44
+    },
+    {
+        "timestamp": "2026-10-27T20:44:53.054298",
+        "src_ip": "127.0.0.1",
+        "dst_ip": "127.0.0.1",
+        "protocol": "TCP",
+        "src_port": 61708,
+        "dst_port": 29,
+        "tcp_flags": "S",
+        "packet_size": 56
+    },
+    {
+        "timestamp": "2026-10-27T20:44:53.054433",
+        "src_ip": "127.0.0.1",
+        "dst_ip": "127.0.0.1",
+        "protocol": "TCP",
+        "src_port": 29,
+        "dst_port": 61708,
+        "tcp_flags": "RA",
+        "packet_size": 44
+    },
+    {
+        "timestamp": "2026-10-27T20:44:53.054565",
+        "src_ip": "127.0.0.1",
+        "dst_ip": "127.0.0.1",
+        "protocol": "TCP",
+        "src_port": 61709,
+        "dst_port": 27,
+        "tcp_flags": "S",
+        "packet_size": 56
+    },
+    {
+        "timestamp": "2026-10-27T20:44:53.054695",
+        "src_ip": "127.0.0.1",
+        "dst_ip": "127.0.0.1",
+        "protocol": "TCP",
+        "src_port": 27,
+        "dst_port": 61709,
+        "tcp_flags": "RA",
+        "packet_size": 44
+    },
+    {
+        "timestamp": "2026-10-27T20:44:53.054826",
+        "src_ip": "127.0.0.1",
+        "dst_ip": "127.0.0.1",
+        "protocol": "TCP",
+        "src_port": 61710,
+        "dst_port": 31,
+        "tcp_flags": "S",
+        "packet_size": 56
+    },
+    {
+        "timestamp": "2026-10-27T20:44:53.054960",
+        "src_ip": "127.0.0.1",
+        "dst_ip": "127.0.0.1",
+        "protocol": "TCP",
+        "src_port": 31,
+        "dst_port": 61710,
+        "tcp_flags": "RA",
+        "packet_size": 44
+    },
+    {
+        "timestamp": "2026-10-27T20:44:53.055105",
+        "src_ip": "127.0.0.1",
+        "dst_ip": "127.0.0.1",
+        "protocol": "TCP",
+        "src_port": 61711,
+        "dst_port": 38,
+        "tcp_flags": "S",
+        "packet_size": 56
+    },
+    {
+        "timestamp": "2026-10-27T20:44:53.055235",
+        "src_ip": "127.0.0.1",
+        "dst_ip": "127.0.0.1",
+        "protocol": "TCP",
+        "src_port": 38,
+        "dst_port": 61711,
+        "tcp_flags": "RA",
+        "packet_size": 44
+    },
+    {
+        "timestamp": "2026-10-27T20:44:53.055368",
+        "src_ip": "127.0.0.1",
+        "dst_ip": "127.0.0.1",
+        "protocol": "TCP",
+        "src_port": 61712,
+        "dst_port": 30,
+        "tcp_flags": "S",
+        "packet_size": 56
+    },
+    {
+        "timestamp": "2026-10-27T20:44:53.055500",
+        "src_ip": "127.0.0.1",
+        "dst_ip": "127.0.0.1",
+        "protocol": "TCP",
+        "src_port": 30,
+        "dst_port": 61712,
+        "tcp_flags": "RA",
+        "packet_size": 44
     }
 ]

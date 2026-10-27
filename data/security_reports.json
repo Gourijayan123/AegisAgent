@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "source_ip": "127.0.0.1",
+    "threat_category": "Port Scan",
+    "severity": "High",
+    "evidence": [
+      "Multiple destination ports contacted",
+      "High connection frequency"
+    ],
+    "threat_intelligence": {
+      "reputation": "Unknown"
+    },
+    "recommended_investigation": [
+      "Review connection history",
+      "Check destination host activity"
+    ]
+  }
+]

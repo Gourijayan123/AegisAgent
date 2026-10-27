@@ -40,6 +40,24 @@ A potential TCP port scan is detected when one source IP contacts at least
 five unique destination ports on the same destination IP within 60 seconds.
 Each source-target pair produces at most one report per analysis run.
 
+## Local Port-Scan Test
+
+To test on one Windows computer, open an elevated PowerShell window and start
+the loopback monitor with a filter that excludes unrelated local traffic:
+
+```powershell
+python detection/network_monitor.py --loopback --filter "tcp and portrange 21-40"
+```
+
+While it is running, use a second PowerShell window to scan only localhost:
+
+```powershell
+nmap -n -Pn -sT -p 21-40 127.0.0.1
+```
+
+After the monitor completes, run `python detection/threat_detector.py` and
+inspect `data/security_reports.json` for the `Port Scan` report.
+
 ## Security Report Format
 
 ```json
